@@ -1,0 +1,105 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "John Kirker"
+date: "July 10, 2016"
+output: html_document
+---
+The object of this final project is to construct a machine-learning algorithm that will quantify the quality of subjects performing barbell lifts correctly and incorrectly five different ways. Data from accelerometers strapped to the belt, forearm, arm and dumbells of six participants will be gathered and used to create the prediction algorithm.  There are five "correctness" classifications of this exercise, one method is the correct form of the exercise while the other four are mistakes: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Finallly the algorithm will be used to answer 20 random questions in order to test the validity of the algorithm
+
+####Introduction
+The following are the course project parameters:
+
+"Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways."<br>
+
+####Data
+
+The training data for this project are available here:<br>
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv<br>
+The test data are available here:<br>
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+<br>
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.<br>
+
+
+####Project Reproduceability
+Load libraries and data
+```{r echo=TRUE}
+##Load the data
+library(caret)
+if (!file.exists("data/pml-training.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "data/pml-training.csv")
+}
+if (!file.exists("data/pml-testing.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "data/pml-testing.csv")
+}
+ptrain <- read.csv("data/pml-training.csv")
+ptest <- read.csv("data/pml-testing.csv")
+
+set.seed(824)
+```
+
+####Data Cleaning
+First withhold 25% of dataset for testing after final model is constructed
+```{r echo=TRUE}
+inTrain <- createDataPartition(y=ptrain$classe, p=0.75, list=F)
+training <- ptrain[inTrain, ]
+testing <- ptrain[-inTrain, ]
+
+# remove variables with nearly zero variance
+nzv <- nearZeroVar(training)
+training <- training[, -nzv]
+testing <- testing[, -nzv]
+
+# remove variables that are almost always NA
+mostlyNA <- sapply(training, function(x) mean(is.na(x))) > 0.90
+training <- training[, mostlyNA==F]
+testing <- testing[, mostlyNA==F]
+```
+
+####Prediction Model Building
+Random Forest
+```{r echo=TRUE}
+# instruct train to use 3-fold CV to select optimal tuning parameters
+fitControl <- trainControl(method="cv", number=3, verboseIter=F)
+    
+# fit model on training
+fit <- train(classe ~ ., data=training, method="rf", trControl=fitControl)
+
+fit$finalModel
+
+# use model to predict classe in validation set (testing)
+preds <- predict(fit, newdata=testing)
+
+# show confusion matrix
+confusionMatrix(testing$classe, preds)
+
+# remove variables with almost zero variance
+nzv <- nearZeroVar(ptrain)
+ptrain <- ptrain[, -nzv]
+ptest <- ptest[, -nzv]
+
+# remove variables that are nearly always NA
+mostlyNA <- sapply(ptrain, function(x) mean(is.na(x))) > 0.90
+ptrain <- ptrain[, mostlyNA==F]
+ptest <- ptest[, mostlyNA==F]
+
+# remove variables that have no use in making prediction
+ptrain <- ptrain[, -(1:5)]
+ptest <- ptest[, -(1:5)]
+
+# Random Forest 
+# model fit
+# re-fit model using training set ptrain
+fitControl <- trainControl(method="cv", number=3, verboseIter=F)
+fit <- train(classe ~ ., data=ptrain, method="rf", trControl=fitControl)
+```
+
+####Apply Selected Model to Dataset
+```{r echo=TRUE}
+# prediction on test dataset
+testPredictions <- predict(fit, newdata=ptest)
+
+# convert predictions to character vector and output
+testPredictions <- as.character(testPredictions)
+testPredictions
+```
