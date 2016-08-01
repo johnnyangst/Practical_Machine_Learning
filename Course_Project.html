@@ -248,24 +248,41 @@ ptest &lt;- ptest[, mostlyNA==F]
 
 # remove variables that have no use in making prediction
 ptrain &lt;- ptrain[, -(1:5)]
-ptest &lt;- ptest[, -(1:5)]
-
-# Random Forest 
+ptest &lt;- ptest[, -(1:5)]</code></pre>
+</div>
+<div id="out-of-sample-error" class="section level4">
+<h4>Out-of-sample error</h4>
+<p>The following shows that Random Forest gives greater accuracy than K-Nearest Neighbors</p>
+<pre class="r"><code># KNN, Random Forest
 # model fit
 # re-fit model using training set ptrain
-fitControl &lt;- trainControl(method=&quot;cv&quot;, number=3, verboseIter=F)
-fit &lt;- train(classe ~ ., data=ptrain, method=&quot;rf&quot;, trControl=fitControl)</code></pre>
+ctrlKNN = trainControl(method = &quot;adaptive_cv&quot;)
+modelKNN = train(classe ~ ., ptrain, method = &quot;knn&quot;, trControl = ctrlKNN)
+ctrlRF = trainControl(method = &quot;oob&quot;)
+modelRF = train(classe ~ ., ptrain, method = &quot;rf&quot;, ntree = 200, trControl = ctrlRF)
+resultsKNN = data.frame(modelKNN$results)
+resultsRF = data.frame(modelRF$results)
+resultsKNN</code></pre>
+<pre><code>##   k  Accuracy     Kappa  AccuracySD     KappaSD .B
+## 1 5 0.9370611 0.9203603 0.005875275 0.007424439 10
+## 2 7 0.9164118 0.8942220 0.005585348 0.007082361  5
+## 3 9 0.9023447 0.8764399 0.005563750 0.007044719  5</code></pre>
+<pre class="r"><code>resultsRF</code></pre>
+<pre><code>##    Accuracy     Kappa mtry
+## 1 0.9965345 0.9956164    2
+## 2 0.9987259 0.9983885   27
+## 3 0.9963816 0.9954229   53</code></pre>
+<p>The data show that Random Forest has far greater accuracy at over 99%</p>
 </div>
 <div id="apply-selected-model-to-dataset" class="section level4">
 <h4>Apply Selected Model to Dataset</h4>
 <pre class="r"><code># prediction on test dataset
-testPredictions &lt;- predict(fit, newdata=ptest)
+testPredictions &lt;- predict(modelRF, newdata=ptest)
 
-# convert predictions to character vector and output
-testPredictions &lt;- as.character(testPredictions)
+# project predection output
 testPredictions</code></pre>
-<pre><code>##  [1] &quot;B&quot; &quot;A&quot; &quot;B&quot; &quot;A&quot; &quot;A&quot; &quot;E&quot; &quot;D&quot; &quot;B&quot; &quot;A&quot; &quot;A&quot; &quot;B&quot; &quot;C&quot; &quot;B&quot; &quot;A&quot; &quot;E&quot; &quot;E&quot; &quot;A&quot;
-## [18] &quot;B&quot; &quot;B&quot; &quot;B&quot;</code></pre>
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E</code></pre>
 </div>
 
 
